@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
-const SOCK_PATH: &str = "/run/zeroconfgetter/zeroconfgetter.sock";
-use crate::Hosts;
-use std::{fs, io, sync::Arc};
+use crate::{die, Hosts};
+use std::{ffi::OsString, fs, io, path::PathBuf, sync::Arc};
 
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
@@ -11,13 +10,20 @@ use tokio::{
 };
 
 pub async fn listener(hosts: Hosts) {
-    if crate::die!({std::fs::exists(SOCK_PATH) } "failed checking if {SOCK_PATH} exists! {err}") {
-        crate::die!( { fs::remove_file(SOCK_PATH) } "failed removing {SOCK_PATH}! {err}")
+    let mut path = PathBuf::from(
+        std::env::var_os("RUNTIME_DIRECTORY")
+            .unwrap_or_else(|| OsString::from("/run/zeroconfgetter/")),
+    );
+
+    path.push("zeroconfgetter.sock");
+
+    if die!({fs::exists(&path)} "failed checking if {} exists! {err}", path.display()) {
+        die!({fs::remove_file(&path)} "failed removing {}! {err}", path.display())
     }
 
     let old_umask = unsafe { libc::umask(0) };
     let listener =
-        crate::die!( {UnixListener::bind(SOCK_PATH) } "failed binding to {SOCK_PATH}! {err}");
+        die!( {UnixListener::bind(&path) } "failed binding to {}! {err}", path.display());
     unsafe { libc::umask(old_umask) };
 
     while let Ok((stream, _addr)) = listener.accept().await {
