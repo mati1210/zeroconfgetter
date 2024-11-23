@@ -17,7 +17,6 @@ pub async fn listener(hosts: Hosts) {
 }
 
 async fn handler(service: ServiceDiscovery, hosts: Hosts) {
-    dbg!(&service);
     if service.address() == "127.0.0.1" || service.address().contains(':') {
         return;
     }

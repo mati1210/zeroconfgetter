@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-const SOCK_PATH: &str = "zeroconfgetter.sock";
+const SOCK_PATH: &str = "/run/zeroconfgetter/zeroconfgetter.sock";
 use crate::Hosts;
 use std::{fs, io, sync::Arc};
 
@@ -15,8 +15,11 @@ pub async fn listener(hosts: Hosts) {
         crate::die!( { fs::remove_file(SOCK_PATH) } "failed removing {SOCK_PATH}! {err}")
     }
 
+    let old_umask = unsafe { libc::umask(0) };
     let listener =
         crate::die!( {UnixListener::bind(SOCK_PATH) } "failed binding to {SOCK_PATH}! {err}");
+    unsafe { libc::umask(old_umask) };
+
     while let Ok((stream, _addr)) = listener.accept().await {
         let host = Arc::clone(&hosts);
         spawn(async move {

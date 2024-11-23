@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MPL-2.0
+
+[Unit]
+Description=Get zeroconf
+
+[Service]
+DynamicUser=yes
+RuntimeDirectory=zeroconfgetter
+ExecStart=/usr/local/bin/zeroconfgetter
+
+Restart=always
+RestartSec=5s
+
+CPUWeight=idle
+IOSchedulingClass=idle
+
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+ProtectClock=yes
+PrivateNetwork=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+PrivateDevices=yes
+PrivateTmp=yes
+PrivateUsers=yes
+ProtectHome=yes
+ProtectProc=invisible
+ProtectSystem=strict
+NoNewPrivileges=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+SystemCallFilter=~ @reboot @swap @mount @privileged @module @raw-io @resources @debug @obsolete @cpu-emulation
+
+[Install]
+WantedBy=multi-user.target
