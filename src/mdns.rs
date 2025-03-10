@@ -3,15 +3,15 @@
 use std::sync::Arc;
 
 use crate::Hosts;
-use mdns_sd::{IfKind, ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::spawn;
 
 pub async fn listener(hosts: Hosts) {
     let prefer_ipv6 = std::env::var_os("PREFER_IPV6").is_some();
 
     let service = crate::die!({ ServiceDaemon::new()} "failed to create mdns daemon! {err}");
-    crate::die!({service.enable_interface(IfKind::All)} "failed to enable all interfaces! {err}");
-    let browser = crate::die!({service.browse("_ssh._tcp.local.")} "failed to browse mdns! {err}");
+    let browser =
+        crate::die!({ service.browse("_ssh._tcp.local.") } "failed to browse mdns! {err}");
 
     while let Ok(event) = browser.recv_async().await {
         if let ServiceEvent::ServiceResolved(info) = event {
