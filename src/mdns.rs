@@ -48,5 +48,5 @@ async fn handler(service: ServiceInfo, hosts: Hosts, prefer_ipv6: bool) {
     drop(hosts_ro);
 
     let mut rw_lock = hosts.write().await;
-    rw_lock.insert(host_prop.val_str().to_string(), address.clone());
+    rw_lock.insert(host_prop.val_str().to_string(), address);
 }
