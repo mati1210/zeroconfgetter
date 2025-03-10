@@ -3,41 +3,51 @@
 use std::sync::Arc;
 
 use crate::Hosts;
+use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::spawn;
-use zeroconf_tokio::{prelude::*, MdnsBrowser, MdnsBrowserAsync, ServiceDiscovery, ServiceType};
 
 pub async fn listener(hosts: Hosts) {
     let prefer_ipv6 = std::env::var_os("PREFER_IPV6").is_some();
 
-    let service = ServiceType::new("ssh", "tcp").unwrap();
-    let mut browser = crate::die!({MdnsBrowserAsync::new(MdnsBrowser::new(service)) } "failed creating mdns browser! {err}");
-    crate::die!( {browser.start().await } "failed starting mdns browser! {err}");
-    while let Some(Ok(discovery)) = browser.next().await {
-        let _hosts = Arc::clone(&hosts);
-        spawn(async move { handler(discovery, _hosts, prefer_ipv6).await });
+    let service = crate::die!({ ServiceDaemon::new()} "failed to create mdns daemon! {err}");
+    let browser =
+        crate::die!({ service.browse("_ssh._tcp.local.") } "failed to browse mdns! {err}");
+
+    while let Ok(event) = browser.recv_async().await {
+        if let ServiceEvent::ServiceResolved(info) = event {
+            let _hosts = Arc::clone(&hosts);
+            spawn(async move { handler(info, _hosts, prefer_ipv6).await });
+        }
     }
 }
 
-async fn handler(service: ServiceDiscovery, hosts: Hosts, prefer_ipv6: bool) {
-    let address = service.address();
-    if address == "127.0.0.1" || address.contains(if prefer_ipv6 { '.' } else { ':' }) {
-        return;
-    }
+async fn handler(service: ServiceInfo, hosts: Hosts, prefer_ipv6: bool) {
+    let mut address: Option<String> = None;
+    for addr in service.get_addresses() {
+        if addr.is_loopback()
+            || if prefer_ipv6 {
+                addr.is_ipv4()
+            } else {
+                addr.is_ipv6()
+            }
+        {
+            continue;
+        }
 
-    let Some(txt) = service.txt() else {
+        address = Some(addr.to_string());
+        break;
+    }
+    let Some(address) = address else { return };
+    let Some(host_prop) = service.get_property("host") else {
         return;
     };
 
-    let Some(host) = txt.get("host") else {
-        return;
-    };
-
-    let ro_lock = hosts.read().await;
-    if ro_lock.get(&host) == Some(address) {
+    let hosts_ro = hosts.read().await;
+    if hosts_ro.get(host_prop.val_str()) == Some(&address) {
         return;
     }
-    drop(ro_lock);
+    drop(hosts_ro);
 
     let mut rw_lock = hosts.write().await;
-    rw_lock.insert(host, address.clone());
+    rw_lock.insert(host_prop.val_str().to_string(), address.clone());
 }
