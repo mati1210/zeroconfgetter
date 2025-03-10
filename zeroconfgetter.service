@@ -17,7 +17,6 @@ IOSchedulingClass=idle
 MemoryDenyWriteExecute=yes
 CapabilityBoundingSet=
 ProtectClock=yes
-PrivateNetwork=yes
 ProtectControlGroups=yes
 ProtectHostname=yes
 ProtectKernelLogs=yes
